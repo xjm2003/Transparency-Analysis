@@ -16,6 +16,7 @@ from scipy.linalg import toeplitz
 from scipy.optimize import minimize_scalar
 from sklearn.preprocessing import PolynomialFeatures, OneHotEncoder
 import matplotlib.pyplot as plt
+import sys
 class KernelTransparencyLearning(LinearScoreMixin, DoubleML):
     def __init__(self,
                  obj_dml_data,
@@ -173,7 +174,6 @@ class KernelTransparencyLearning(LinearScoreMixin, DoubleML):
                          force_all_finite=False)
         x, d = check_X_y(x, self._dml_data.d,
                          force_all_finite=False)
-
         if scoring_methods is None:
             scoring_methods = {'ml_l': None, 'ml_m': None, 'ml_g': None, 'ml_h': None}
         l_hat = np.full_like(y, np.nan)
@@ -221,7 +221,7 @@ def make_data(n_obs=500, dim_x=20, alpha=0.5, **kwargs):
     a_0 = kwargs.get('a_0', 1.)
     a_1 = kwargs.get('a_1', 1.)
     s_1 = kwargs.get('s_1', 1.)
-    
+
     b_0 = kwargs.get('b_0', 1.)
     b_1 = kwargs.get('b_1', 0.25)
     s_2 = kwargs.get('s_2', 1.)
@@ -230,7 +230,11 @@ def make_data(n_obs=500, dim_x=20, alpha=0.5, **kwargs):
     v = np.random.standard_normal(size=[n_obs, ])
     d = a_0 * x[:, 0] + a_1 * np.divide(np.exp(x[:, 2]), 1 + np.exp(x[:, 2])) \
         + s_1 * v
-    delta = np.array([1 if (i > -5 * a_1 and i < 6 * a_1) else -1 for i in d])
+    choice = sys.argv[1]
+    if choice == '1':
+        delta = np.array([1 if (i > 0.5 * a_1) else -1 for i in d])
+    elif choice == '2':
+        delta = np.array([np.cos(0.5*np.pi*i)-np.sin(0.5*np.pi*i) for i in d])
     y = alpha * d + b_0 * np.divide(np.exp(x[:, 0]), 1 + np.exp(x[:, 0])) \
         + b_1 * x[:, 2] + s_2 * np.random.standard_normal(size=[n_obs, ]) + v + delta
     x_cols = [f'X{i + 1}' for i in np.arange(dim_x)]
