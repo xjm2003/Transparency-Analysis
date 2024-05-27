@@ -216,28 +216,55 @@ class KernelTransparencyLearning(LinearScoreMixin, DoubleML):
                'tune_res': tune_res}
         return res
 
+def algorithm(z, y, x, i):
+    np.random.seed(1000 + i)
+    kerneltransparencydata = DoubleMLData.from_arrays(z, y, x)
+    learner = RandomForestRegressor(n_estimators=500, max_features=20, max_depth=5, min_samples_leaf=2)
+    ml_l = clone(learner)
+    ml_m = clone(learner)
+    ml_g = clone(learner)
+    ml_h = clone(learner)
+    dml_plr_obj = KernelTransparencyLearning(kerneltransparencydata, ml_l, ml_m, ml_g, ml_h, score='IV-type',
+                                             dml_procedure='dml1')
+    dml_plr_obj.fit()
+    print(dml_plr_obj)
+    return dml_plr_obj.coef
 
 data = pd.read_csv("2020-04-03_ADNI.csv")
+data['Gender'] = data['Gender'].apply(lambda x: 1 if x == 'Female' else 0)
 data = data.drop([486, 517, 672]).values
+z_index = np.array([5, 6, 11, 15]+list(range(89, 157)),dtype=int)
+cu = data[:, 12] == 'CU'
+mci = data[:, 12] == 'MCI'
+ad = data[:, 12] == 'AD'
+cu_x = data[cu, 19:89]
+cu_y = data[cu, 16]
+cu_z = data[cu][:, z_index]
+mci_x = data[mci, 19:89]
+mci_y = data[mci, 16]
+mci_z = data[mci][:, z_index]
+ad_x = data[ad, 19:89]
+ad_y = data[ad, 16]
+ad_z = data[ad][:, z_index]
 np.random.seed(1000)
 x = data[:, 19:89]
-z = data[:, [5,6,11]+list(range(89, 157))]
-for i in range(697):
-    if z[i][0]=='Female':
-        z[i][0]=1
-    else:
-        z[i][0]=0
 y = data[:, 16]
-kerneltransparencydata=DoubleMLData.from_arrays(z,y,x)
-learner = RandomForestRegressor(n_estimators=500, max_features=20, max_depth=5, min_samples_leaf=2)
-ml_l = clone(learner)
-ml_m = clone(learner)
-ml_g = clone(learner)
-ml_h = clone(learner)
-
-dml_plr_obj = KernelTransparencyLearning(kerneltransparencydata, ml_l, ml_m, ml_g, ml_h, score='IV-type',
-                                              dml_procedure='dml1')
-dml_plr_obj.fit()
-theta = dml_plr_obj.coef
-print(theta)
+z = data[:, z_index]
+beta = []
+beta_cu = []
+beta_mci = []
+beta_ad = []
+for i in range(100):
+    beta_cu.append(algorithm(cu_z, cu_y, cu_x, i))
+    beta_mci.append(algorithm(mci_z, mci_y, mci_x, i))
+    beta_ad.append(algorithm(ad_z, ad_y, ad_x, i))
+    beta.append(algorithm(z, y, x, i))
+    np.savetxt('result/Global/output'+str(i + 1)+'.txt', beta[i], fmt='%0.4f')
+    np.savetxt('result/CU/output_cu' + str(i + 1) + '.txt', beta_cu[i], fmt='%0.4f')
+    np.savetxt('result/MCI/output_mci' + str(i + 1) + '.txt', beta_mci[i], fmt='%0.4f')
+    np.savetxt('result/AD/output_ad' + str(i + 1) + '.txt', beta_ad[i], fmt='%0.4f')
+print(np.mean(beta, axis=0))
+print(np.mean(beta_cu, axis=0))
+print(np.mean(beta_mci, axis=0))
+print(np.mean(beta_ad, axis=0))
 
